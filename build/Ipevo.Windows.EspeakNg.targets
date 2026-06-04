@@ -1,0 +1,13 @@
+<Project>
+
+  <!-- Copy the whole espeak-ng payload (exe, language data, COPYING, source.zip)
+       into <output>\espeak-ng\ of the consuming project, preserving the folder structure. -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\espeak-ng\**\*">
+      <Link>espeak-ng\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </None>
+  </ItemGroup>
+
+</Project>

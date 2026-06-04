@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageId>Ipevo.Windows.EspeakNg</PackageId>
+    <Version>1.52.0.1</Version>
+    <Authors>IPEVO</Authors>
+    <Description>eSpeak NG 1.52.0.1 text-to-speech command-line executable and language data for Windows x64 (upstream commit fbe4b376, unmodified). Licensed under GPLv3; the complete corresponding source (including libsonic) is included as espeak-ng/source.zip and is deployed to the output directory together with the executable. The consuming application invokes espeak-ng.exe as a separate process.</Description>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/ipevo-rd/windows-espeak-ng</PackageProjectUrl>
+    <PackageTags>espeak-ng;tts;text-to-speech;windows</PackageTags>
+
+    <!-- Content-only package: no assembly, no framework dependencies -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="espeak-ng\**" Pack="true" PackagePath="espeak-ng\" />
+    <None Include="build\Ipevo.Windows.EspeakNg.targets" Pack="true" PackagePath="build\" />
+    <None Include="buildTransitive\Ipevo.Windows.EspeakNg.targets" Pack="true" PackagePath="buildTransitive\" />
+  </ItemGroup>
+
+</Project>
