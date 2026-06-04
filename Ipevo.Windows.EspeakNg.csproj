@@ -10,6 +10,9 @@
     <PackageProjectUrl>https://github.com/ipevo-rd/windows-espeak-ng</PackageProjectUrl>
     <PackageTags>espeak-ng;tts;text-to-speech;windows</PackageTags>
 
+    <!-- Pack output goes to nupkg/ (internal convention, matches CI) -->
+    <PackageOutputPath>nupkg</PackageOutputPath>
+
     <!-- Content-only package: no assembly, no framework dependencies -->
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>

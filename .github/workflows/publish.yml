@@ -1,0 +1,63 @@
+name: Build & Release Package (Windows EspeakNg)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'release*'
+      - '*release*'
+
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  build:
+    runs-on: [self-hosted, Windows]
+
+    env:
+      VERSION: ''
+
+    steps:
+
+      - name: 從 tag 取出版號（三碼或四碼，空版號會跳過後續發布步驟）
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref }}"
+          $tagName = $tag -replace '^refs/tags/', ''
+          Write-Host "Tag: $tagName"
+
+          $version = $tagName -replace '^release-v?', ''
+
+          if ($version -match '^\d+\.\d+\.\d+(\.\d+)?$') {
+            Write-Host "Version is valid: $version"
+            "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          } else {
+            Write-Host "::warning::Invalid version format: $version. Expected format: x.x.x or x.x.x.x"
+            "VERSION=" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          }
+
+      - name: 拉取 repo 程式碼（含 git-lfs 實體檔案）
+        uses: actions/checkout@v6
+        with:
+          lfs: true
+
+      - name: 打包 nupkg，以 tag 版號覆蓋 csproj 的版號（無版號時用 csproj 版號作建置檢查）
+        shell: pwsh
+        run: |
+          if ($env:VERSION) {
+            dotnet pack Ipevo.Windows.EspeakNg.csproj --configuration Release -p:Version="$env:VERSION"
+          } else {
+            dotnet pack Ipevo.Windows.EspeakNg.csproj --configuration Release
+          }
+
+      - name: 推送 nupkg 到 IPEVO 私有 NuGet（跳過已存在的版本）
+        if: ${{ env.VERSION != '' }}
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path ./nupkg -Filter *.nupkg
+          foreach ($file in $files) {
+            Write-Host "Pushing package: $($file.Name) [Size: $("{0:N2} MB" -f ($file.Length / 1MB))]"
+            dotnet nuget push $file.FullName --source "https://nuget.pkg.github.com/$env:GITHUB_REPOSITORY_OWNER/index.json" --api-key "${{ secrets.NUGET_PAT }}" --skip-duplicate
+          }
