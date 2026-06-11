@@ -1,18 +1,18 @@
 name: Build & Release Package (Windows EspeakNg)
 
 # =============================================================================
-# 安全須知（公開 repo + secrets.NUGET_PAT 推私倉）：給後來維護者
+# 安全須知（公開 repo 推 GitHub Packages 私有套件）：給後來維護者
 #
-# 本流程用 org secret `NUGET_PAT` 推套件到公司私倉，發布鑰匙必須只在維護者手上。
-# 以下規則維持 key 不外洩，請勿破壞：
+# 本流程用內建 `GITHUB_TOKEN`（搭配 permissions.packages: write）把套件推到
+# 本 repo 連結的 GitHub Packages，不依賴任何 org secret。套件的私有/公開由套件
+# 自身的 visibility 決定，與 repo 是否公開、與用哪把 token 推皆無關。
+# 以下規則維持發布權不外洩，請勿破壞：
 #
 # 1. 觸發只限 `push: tags`（release tag）與 `workflow_dispatch`，**不要加 `pull_request`**。
-#    → 外人開 PR 不會觸發本流程，key 不會被用到；只有能打 release tag 的維護者能發布。
-# 2. fork 來的 PR 本來就拿不到任何 secret、且 GITHUB_TOKEN 唯讀 —— 這是 GitHub 內建保護。
-#    就算將來新增 PR 觸發的 workflow，fork PR 仍無法讀到 NUGET_PAT。
-# 3. **絕對不要用 `pull_request_target` 去 checkout/執行不信任的 PR 程式碼** ——
-#    那是唯一會把 secret 暴露給 fork 的寫法。
-# 4. 能真正接觸 key 的只有「有 write 權限的協作者」(可改 workflow 外送 key)。
+#    → 只有能打 release tag 的維護者能發布。
+# 2. fork 來的 PR 對 `GITHUB_TOKEN` 只有唯讀權限 —— 這是 GitHub 內建保護，無法用來發布。
+# 3. **絕對不要用 `pull_request_target` 去 checkout/執行不信任的 PR 程式碼**。
+# 4. 能發布的只有「有 write 權限的協作者」。
 #    → write / 打 tag 權限只給組織內信任成員；建議對 outside collaborators 開啟
 #      「Require approval to run workflows」。
 # =============================================================================
@@ -86,12 +86,12 @@ jobs:
             dotnet pack Ipevo.Windows.EspeakNg.csproj --configuration Release
           }
 
-      - name: 推送 nupkg 到 NuGet（跳過已存在的版本）
+      - name: 推送 nupkg 到 GitHub Packages（跳過已存在的版本）
         if: ${{ env.VERSION != '' }}
         shell: pwsh
         run: |
           $files = Get-ChildItem -Path ./nupkg -Filter *.nupkg
           foreach ($file in $files) {
             Write-Host "Pushing package: $($file.Name) [Size: $("{0:N2} MB" -f ($file.Length / 1MB))]"
-            dotnet nuget push $file.FullName --source "https://nuget.pkg.github.com/$env:GITHUB_REPOSITORY_OWNER/index.json" --api-key "${{ secrets.NUGET_PAT }}" --skip-duplicate
+            dotnet nuget push $file.FullName --source "https://nuget.pkg.github.com/$env:GITHUB_REPOSITORY_OWNER/index.json" --api-key "${{ secrets.GITHUB_TOKEN }}" --skip-duplicate
           }
