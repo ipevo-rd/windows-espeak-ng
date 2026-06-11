@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>IpevoEspeakNgProvider</AssemblyName>
+    <RootNamespace>Ipevo.Windows.EspeakNg.Provider</RootNamespace>
+    <Copyright>Copyright (C) 2026 IPEVO Inc.</Copyright>
+
+    <!-- 連結 libespeak-ng (GPLv3)，本執行檔依 GPLv3 授權 -->
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+
+    <!-- 內部 P/Invoke 連結 x64 的 espeak-ng.dll，行程必須為 x64 -->
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+
+    <!-- Native AOT：單一原生 exe，免 .NET runtime，啟動快 -->
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- 連結 libespeak-ng (GPLv3)，本執行檔為 GPL，隨附對應原始碼 (espeak-ng/source.zip) -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="espeak-ng.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

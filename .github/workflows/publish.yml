@@ -1,5 +1,22 @@
 name: Build & Release Package (Windows EspeakNg)
 
+# =============================================================================
+# 安全須知（公開 repo + secrets.NUGET_PAT 推私倉）：給後來維護者
+#
+# 本流程用 org secret `NUGET_PAT` 推套件到公司私倉，發布鑰匙必須只在維護者手上。
+# 以下規則維持 key 不外洩，請勿破壞：
+#
+# 1. 觸發只限 `push: tags`（release tag）與 `workflow_dispatch`，**不要加 `pull_request`**。
+#    → 外人開 PR 不會觸發本流程，key 不會被用到；只有能打 release tag 的維護者能發布。
+# 2. fork 來的 PR 本來就拿不到任何 secret、且 GITHUB_TOKEN 唯讀 —— 這是 GitHub 內建保護。
+#    就算將來新增 PR 觸發的 workflow，fork PR 仍無法讀到 NUGET_PAT。
+# 3. **絕對不要用 `pull_request_target` 去 checkout/執行不信任的 PR 程式碼** ——
+#    那是唯一會把 secret 暴露給 fork 的寫法。
+# 4. 能真正接觸 key 的只有「有 write 權限的協作者」(可改 workflow 外送 key)。
+#    → write / 打 tag 權限只給組織內信任成員；建議對 outside collaborators 開啟
+#      「Require approval to run workflows」。
+# =============================================================================
+
 on:
   workflow_dispatch:
   push:
@@ -14,7 +31,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: [self-hosted, Windows]
+    # GitHub-hosted Windows runner：開源後不依賴 self-hosted，且映像含 MSVC 可跑 Native AOT。
+    runs-on: windows-latest
 
     env:
       VERSION: ''
@@ -38,12 +56,28 @@ jobs:
             "VERSION=" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           }
 
-      - name: 拉取 repo 程式碼（含 git-lfs 實體檔案）
+      - name: 拉取 repo 程式碼（含 git-lfs：espeak 二進位與 dll）
         uses: actions/checkout@v6
         with:
           lfs: true
 
-      - name: 打包 nupkg，以 tag 版號覆蓋 csproj 的版號（無版號時用 csproj 版號作建置檢查）
+      - name: 安裝 .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: 以 Native AOT 建置 IpevoEspeakNgProvider，並更新到 payload
+        shell: pwsh
+        run: |
+          # provider P/Invoke 既有的 espeak-ng.dll（已隨 repo 提交於專案內）。
+          dotnet publish IpevoEspeakNgProvider/IpevoEspeakNgProvider.csproj -c Release -r win-x64
+
+          $exe = "IpevoEspeakNgProvider/bin/Release/net8.0/win-x64/publish/IpevoEspeakNgProvider.exe"
+          if (-not (Test-Path $exe)) { throw "AOT publish output not found: $exe" }
+          Copy-Item $exe "espeak-ng/IpevoEspeakNgProvider.exe" -Force
+          Write-Host "Updated espeak-ng/IpevoEspeakNgProvider.exe"
+
+      - name: 打包 nupkg（以 tag 版號覆蓋；無版號時用 csproj 版號作建置檢查）
         shell: pwsh
         run: |
           if ($env:VERSION) {
@@ -52,7 +86,7 @@ jobs:
             dotnet pack Ipevo.Windows.EspeakNg.csproj --configuration Release
           }
 
-      - name: 推送 nupkg 到 IPEVO 私有 NuGet（跳過已存在的版本）
+      - name: 推送 nupkg 到 NuGet（跳過已存在的版本）
         if: ${{ env.VERSION != '' }}
         shell: pwsh
         run: |

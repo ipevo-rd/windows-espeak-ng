@@ -2,20 +2,30 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
+
+    <!-- IpevoEspeakNgProvider 是同 repo 內的獨立 AOT 子專案，不納入本套件 -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);IpevoEspeakNgProvider\**</DefaultItemExcludes>
+
     <PackageId>Ipevo.Windows.EspeakNg</PackageId>
-    <Version>1.52.0.1</Version>
+    <Version>1.52.0.4</Version>
     <Authors>IPEVO</Authors>
-    <Description>eSpeak NG 1.52.0.1 text-to-speech command-line executable and language data for Windows x64 (upstream commit fbe4b376, unmodified). Licensed under GPLv3; the complete corresponding source (including libsonic) is included as espeak-ng/source.zip and is deployed to the output directory together with the executable. The consuming application invokes espeak-ng.exe as a separate process.</Description>
+    <Copyright>Copyright (C) 2026 IPEVO Inc.</Copyright>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <Description>eSpeak NG 1.52.0 for Windows x64 (release tag 1.52.0, unmodified), packaged for deployment. Content-only package (no managed assembly to reference): it deploys the espeak-ng CLI, libespeak-ng.dll, IpevoEspeakNgProvider.exe (a resident phonemizer that calls espeak_TextToPhonemes via stdin/stdout for Piper-aligned phonemes) and espeak-ng-data to the output directory. Licensed under GPLv3 because it bundles and links GPLv3 eSpeak NG components; the complete corresponding source (including libsonic) is included as espeak-ng/source.zip. Consumers invoke the executables as separate processes (process isolation); nothing is linked into the consumer.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageProjectUrl>https://github.com/ipevo-rd/windows-espeak-ng</PackageProjectUrl>
-    <PackageTags>espeak-ng;tts;text-to-speech;windows</PackageTags>
+    <PackageTags>espeak-ng;tts;text-to-speech;phonemizer;windows;gpl</PackageTags>
+
+    <!-- 純內容套件：不輸出 / 不打包任何 managed assembly，消費端零 dll 參考 -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
 
     <!-- Pack output goes to nupkg/ (internal convention, matches CI) -->
     <PackageOutputPath>nupkg</PackageOutputPath>
 
-    <!-- Ships a small helper assembly plus the espeak-ng content payload -->
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- NU5100: native binaries 不在 lib/，刻意走 content/targets 部署 -->
+    <!-- NU5128: 內容套件無 lib/ref 資料夾 -->
+    <NoWarn>$(NoWarn);NU5100;NU5128</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,193 +1,108 @@
 # Ipevo.Windows.EspeakNg
 
-將 [eSpeak NG](https://github.com/espeak-ng/espeak-ng)(GPLv3）的 Windows x64 執行檔與語言資料封裝成 NuGet 套件，供 IPEVO 內部 .NET 專案以「獨立行程呼叫」方式使用，並隨套件附上滿足 GPLv3 的完整對應原始碼。
+GPLv3, Windows x64 套件:把 [eSpeak NG](https://github.com/espeak-ng/espeak-ng) `1.52.0` 與一支常駐音素提供者打包成可部署的內容套件,供 .NET 專案以**獨立行程**方式呼叫,取得與 Piper 對齊的音素。
 
-- 套件 ID：`Ipevo.Windows.EspeakNg`
-- 內含 eSpeak NG `1.52.0.1`（上游 commit `fbe4b376`，未修改）
-- 平台：Windows x64
+- 套件 ID:`Ipevo.Windows.EspeakNg`(**內容套件,不含任何 managed dll**)
+- 內含 eSpeak NG release tag `1.52.0`(未修改)
+- 平台:Windows x64
+- 授權:**GPLv3**(見 [授權](#授權))
 
 ---
 
-## 這個套件如何避開 GPL 感染
+## 為什麼是 GPL
 
-eSpeak NG 採 GPLv3。GPL 的「衍生著作」判定關鍵在**連結方式**，本套件以下列設計確保呼叫端程式不被 GPL 感染：
+本套件 bundle 了 eSpeak NG(GPLv3)的二進位,並含一支**連結 libespeak-ng** 的執行檔 `IpevoEspeakNgProvider`,因此整包受 GPLv3 約束、在此開源。
 
-- **不連結 `libespeak-ng`**：套件內只有編譯好的 `espeak-ng.exe`（命令列工具），沒有任何 espeak 函式庫供連結。呼叫端用 `System.Diagnostics.Process` 啟動 exe，透過命令列參數與標準輸出／檔案交換資料。
-- **行程隔離即 mere aggregation**：兩個程式各自獨立執行、僅以命令列與管線通訊，屬 GPL FAQ 明確認可的「單純聚集（mere aggregation）」，呼叫端維持自己的授權。
-- **隨附完整對應原始碼**：套件內含 `espeak-ng/source.zip`，包含建置此 exe 所用的完整 eSpeak NG 原始碼與其相依的 libsonic 原始碼（解開即可離線重建），滿足 GPLv3「提供對應原始碼」的義務。
-- **未修改原始碼**：上游原碼原樣使用，無修改標示義務。
-- **helper 不觸碰 GPL 程式碼**：套件內的 `EspeakNgLocator` 是 IPEVO 自行撰寫、用來定位檔案路徑的小工具，與 eSpeak NG 原始碼無任何衍生關係。
+設計上以**行程邊界**隔離 GPL:消費端**不連結**本套件任何程式碼(本套件根本不提供 managed dll),只是以 `Process` 啟動其中的執行檔、透過 stdin/stdout 通訊。依 GPL FAQ,這屬「單純聚集(mere aggregation)」,呼叫端自身的程式不會成為 GPL 衍生著作。
 
-> 紅線：請勿改以靜態或動態方式連結 `libespeak-ng`，亦勿透過共享記憶體傳遞其內部資料結構。一旦如此，行程隔離不再成立，呼叫端將被視為 GPL 衍生著作。
+> 注意:消費端若**再散布**本套件的二進位給第三方,仍須履行 GPLv3 義務(隨附 `espeak-ng/source.zip` 與 `COPYING`、提供第三方聲明)。GPL 的隔離保護的是「呼叫端程式碼的授權」,不是「免除散布義務」。
 
 ---
 
 ## 套件內容
 
-安裝後，建置時整個 `espeak-ng/` 資料夾會以 `PreserveNewest` 複製到呼叫端專案的輸出目錄：
+安裝後,build targets 會把整個 `espeak-ng/` 資料夾以 `PreserveNewest` 複製到消費端輸出目錄:
 
 ```
 <輸出目錄>/
 └── espeak-ng/
-    ├── espeak-ng.exe          # 命令列執行檔
-    ├── espeak-ng-data/        # 語言與音素資料（ESPEAK_DATA_PATH 之下一層）
-    ├── COPYING                # GPLv3 授權全文
-    └── source.zip             # 完整對應原始碼（含 libsonic）
+    ├── IpevoEspeakNgProvider.exe   # 常駐音素提供者 (Native AOT，連結 libespeak-ng)
+    ├── espeak-ng.exe               # 標準 eSpeak NG CLI
+    ├── espeak-ng.dll               # libespeak-ng 引擎 (native)
+    ├── espeak-ng-data/             # 語言與音素資料
+    ├── COPYING                     # GPLv3 授權全文
+    └── source.zip                  # 完整對應原始碼 (espeak-ng 1.52.0 + libsonic + BUILD.md)
 ```
 
-套件同時提供一個 `netstandard2.0` 的 helper 組件（命名空間 `Ipevo.Windows.EspeakNg`），用來定位上述資源並檢查 GPL 必備檔是否齊備。
+本套件**不提供 lib/ 下的 managed assembly**;消費端無 dll 可參考,只會叫用上述 exe。
 
 ---
 
-## 安裝
+## 使用方式 (消費端)
 
-```
-dotnet add package Ipevo.Windows.EspeakNg
-```
+消費端以行程方式叫用,不連結任何東西。
 
-套件來源為 IPEVO 私有 GitHub NuGet（`https://nuget.pkg.github.com/ipevo-rd/index.json`）。
+### IpevoEspeakNgProvider — 取對齊音素 (建議)
 
-> 本套件使用 git-lfs 儲存大型二進位檔。若是 clone 本 repo 自行建置，需先安裝 git-lfs 並 `git lfs pull`。
+常駐行程,逐行協定 (UTF-8):
 
----
+- stdin 每行一個請求:`<voice>\t<text>`
+- stdout 每行一個回應:該句音素 (各 clause 以單一空白接起)
 
-## 使用方式
+它內部呼叫 `espeak_TextToPhonemes`(翻譯階段 / API 路徑),輸出與 piper-phonemize / Piper 訓練端對齊。回傳為 espeak 原始音素 (可能含 `(lang)` 旗標、未 NFD);piper 用的後處理 (去旗標、NFD) 由消費端負責。
 
-最簡單的方式是用 `EspeakNgRunner`，它會以獨立行程啟動 `espeak-ng.exe`、自動設定 `ESPEAK_DATA_PATH`，維持與 GPL 程式碼的行程隔離。若需自行掌控啟動流程，再改用 `EspeakNgLocator` 取得路徑。
+啟動時以環境變數 `ESPEAK_DATA_PATH` 指向含 `espeak-ng-data` 的父目錄 (即部署的 `espeak-ng` 資料夾)。
 
-### 方式一：用 `EspeakNgRunner`（建議）
-
-未傳入路徑時自動定位；回傳含成敗狀態的 `EspeakNgResult`（執行檔遺失不丟例外，回傳 `Success=false`）。
+最小 C# 範例 (消費端自有碼,不連結本套件):
 
 ```csharp
-using Ipevo.Windows.EspeakNg;
-
-// 同步
-EspeakNgResult result = EspeakNgRunner.Run("-xq -v en \"Hello world\"");
-if (result.Success)
+var exe = Path.Combine(AppContext.BaseDirectory, "espeak-ng", "IpevoEspeakNgProvider.exe");
+var psi = new ProcessStartInfo(exe)
 {
-    Console.WriteLine(result.Phonemes); // h@l'oU w'3:ld
-}
-
-// 非同步（可帶 CancellationToken）
-EspeakNgResult asyncResult = await EspeakNgRunner.RunAsync("-xq -v en \"Hello world\"");
-
-// 也可明確傳入路徑（第二、三參數）
-EspeakNgResult custom = EspeakNgRunner.Run("-xq -v en \"text\"", exePath, dataPath);
-```
-
-`EspeakNgResult` 屬性：`Success`、`ExitCode`、`Phonemes`（標準輸出）、`StandardError`、`ErrorMessage`（無法啟動時的訊息，正常時為 null）。
-
-#### `arguments` 怎麼下
-
-`arguments` 就是在終端機 `espeak-ng` 之後要輸入的那一串（不含 `espeak-ng` 本身），整串原樣交給行程，含空白的文字需自行用雙引號包住。常用選項：
-
-| 選項 | 說明 |
-| --- | --- |
-| `-v <voice>` | 指定語言／語音，如 `-v en`、`-v cmn` |
-| `-q` | 不發音（僅處理，常與 `-x` 併用） |
-| `-x` | 輸出 espeak 音素記法到標準輸出 |
-| `--ipa` | 輸出 IPA 音素 |
-| `-w <file>` | 合成為 WAV 檔（此時標準輸出無音素） |
-| 結尾文字 | 欲處理的文字，含空白時用雙引號包住 |
-
-範例：
-
-```csharp
-EspeakNgRunner.Run("-q -x -v en \"Hello world\"");    // 取英語音素
-EspeakNgRunner.Run("-q --ipa -v en \"Hello world\""); // 取 IPA 音素
-EspeakNgRunner.Run("-v cmn -w out.wav \"你好\"");      // 合成中文為 WAV
-```
-
-完整選項執行 `espeak-ng --help` 或參閱上游文件。
-
-同步與非同步皆提供，但實際啟動行程的邏輯只存在於 `RunAsync`，`Run` 委派至其上，避免重複程式碼與同步內容死結。
-
-### 方式二：用 `EspeakNgLocator` 自行啟動
-
-`EspeakNgLocator.Locate()` 以呼叫端的輸出目錄為基底，回傳一個 `EspeakNgLocation` 結果物件（不丟例外，由你決定如何處理檢查結果）。
-
-```csharp
-using System.Diagnostics;
-using Ipevo.Windows.EspeakNg;
-
-var loc = EspeakNgLocator.Locate();
-
-if (!loc.IsValid)
-{
-    // 執行檔遺失或 GPL 必備檔不齊；loc.MissingGplFiles 列出缺少項目
-    throw new InvalidOperationException(
-        $"eSpeak NG deployment invalid. Missing GPL files: {string.Join(", ", loc.MissingGplFiles)}");
-}
-
-var psi = new ProcessStartInfo(loc.ExecutablePath)
-{
-    Arguments = "-xq -v en \"Hello world\"",
+    RedirectStandardInput = true,
     RedirectStandardOutput = true,
     UseShellExecute = false,
+    StandardInputEncoding = new UTF8Encoding(false),
+    StandardOutputEncoding = new UTF8Encoding(false),
 };
+psi.Environment["ESPEAK_DATA_PATH"] = Path.Combine(AppContext.BaseDirectory, "espeak-ng");
 
-// 引擎需以 ESPEAK_DATA_PATH 找到 espeak-ng-data
-psi.Environment["ESPEAK_DATA_PATH"] = loc.DataPath;
-
-using var process = Process.Start(psi);
-string phonemes = process.StandardOutput.ReadToEnd();
-process.WaitForExit();
+using var p = Process.Start(psi)!;
+p.StandardInput.AutoFlush = true;
+p.StandardInput.WriteLine("en-us\tHello world");
+string phonemes = p.StandardOutput.ReadLine();   // həlˈoʊ wˈɜːld
 ```
 
-### `EspeakNgLocation` 屬性
+> 為什麼用獨立 provider 而非 `espeak-ng.exe --ipa`:CLI 的 `--ipa` 走 `espeak_Synth` 合成路徑,會多套合成階段的同位音/聲調 (如英語的顎化滑音 ʲ、義語 r→ɾ、越語聲調數字),與訓練端的 `espeak_TextToPhonemes` 不一致。provider 走 API 路徑,精準對齊。
 
-| 屬性 | 說明 |
-| --- | --- |
-| `RootDirectory` | payload 根目錄（即 `espeak-ng/` 資料夾） |
-| `DataPath` | 應設給 `ESPEAK_DATA_PATH` 的路徑（等同 `RootDirectory`） |
-| `ExecutablePath` | `espeak-ng.exe` 完整路徑 |
-| `DataDirectory` | `espeak-ng-data` 資料夾完整路徑 |
-| `IsExecutablePresent` | 執行檔是否存在 |
-| `MissingGplFiles` | 缺少的 GPL 必備檔清單（齊備時為空） |
-| `AreGplFilesPresent` | GPL 必備檔（`COPYING`、`source.zip`）是否齊備 |
-| `IsValid` | 執行檔存在且 GPL 必備檔齊備 |
+### espeak-ng.exe — 一般 espeak CLI
+
+標準 eSpeak NG 命令列工具,需要時直接以行程叫用 (同樣設 `ESPEAK_DATA_PATH`)。
 
 ---
 
-## 呼叫端需自行完成的 GPL 義務
+## 從原始碼建置
 
-本套件已備妥技術隔離與原始碼，但 GPLv3 的「告知與散布」義務只能由**最終散布產品的你**履行。將含本套件的程式交付給客戶／使用者時，請補上：
+`espeak-ng/source.zip` 內含 `BUILD.md`,說明如何離線重建 `espeak-ng.dll` / `espeak-ng.exe` / 資料 (MSVC + CMake + Ninja,以隨附 libsonic 取代 FetchContent)。
 
-1. **保留並一同散布 `espeak-ng/` 整包**
-   `espeak-ng.exe`、`COPYING`、`source.zip` 必須跟著你的產品一起送到每一個收到執行檔的對象手上，不可拆散或刪減。若客戶會再轉發，這包也要一併隨行。
+`IpevoEspeakNgProvider`(本 repo 的子專案)以 Native AOT 建置,P/Invoke `espeak-ng.dll` 呼叫 `espeak_TextToPhonemes`:
 
-2. **向使用者提供第三方軟體聲明**
-   在產品的「關於」頁面、安裝目錄文件或授權說明中，可被合理發現地載明：
-   - 本產品包含 eSpeak NG（版本與 commit），依 GPLv3 授權，著作權歸原作者
-   - 授權全文見隨附的 `COPYING`，完整對應原始碼見隨附的 `source.zip`
-   - 上游網址 `https://github.com/espeak-ng/espeak-ng`
-   - exe 內靜態連結 libsonic（Apache 2.0），其授權與原始碼一併包含於 `source.zip`
-
-3. **EULA 排除條款**
-   若你的產品有自己的使用者授權合約，需明文聲明該合約不適用於隨附的 eSpeak NG，該部分依 GPLv3 授權。GPLv3 禁止對 GPL 部分附加額外限制。
-
-4. **維持行程隔離的呼叫方式**
-   僅以 `Process` 啟動 `espeak-ng.exe`、用命令列參數與管線／檔案交換資料。不要連結 `libespeak-ng`，不要用共享記憶體或傳遞其內部資料結構。
-
-> 你不需要做的事：因原始碼未修改，無修改標示義務；因已隨附 `source.zip`，無須另出具書面要約（written offer）。
-
----
-
-## 重新建置 exe 與資料
-
-`source.zip` 內含 `BUILD.md`，說明如何從原始碼離線重建 `espeak-ng.exe` 與語言資料（MSVC + CMake + Ninja，並以隨附的 libsonic 取代 FetchContent 下載）。
+```
+dotnet publish IpevoEspeakNgProvider -c Release -r win-x64
+```
 
 ---
 
 ## 授權
 
-- eSpeak NG 與本套件散布的執行檔／資料：**GPLv3**（見 `espeak-ng/COPYING`）。
-- libsonic（靜態連結於 exe 內）：Apache 2.0，授權與原始碼包含於 `source.zip`。
-- 套件中的 `EspeakNgLocator` helper 為 IPEVO 撰寫，隨套件一同以 GPLv3 散布。
+- **eSpeak NG / libespeak-ng / espeak-ng.exe / espeak-ng-data**:GPLv3,著作權歸原作者 (見 `espeak-ng/COPYING`)。
+- **IpevoEspeakNgProvider**:IPEVO 撰寫,連結 libespeak-ng,故依 **GPLv3** 授權;完整對應原始碼見 `espeak-ng/source.zip` 與本 repo。
+- **libsonic**(靜態連結於 espeak 引擎內):Apache-2.0,授權與原始碼包含於 `source.zip`(`sonic/LICENSE`)。
+
+整包以 **GPL-3.0-or-later** 發布。
 
 ---
 
 ## 免責
 
-以上 GPL 合規說明為工程實務上的通行理解，非法律意見。正式商用發布前，建議由法務依你所在司法管轄區對 GPLv3 的解釋再行確認。
+以上 GPL 合規說明為工程實務上的通行理解,非法律意見。正式發布前建議由法務確認。
