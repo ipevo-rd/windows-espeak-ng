@@ -51,7 +51,7 @@ GPLv3, Windows x64 套件:把 [eSpeak NG](https://github.com/espeak-ng/espeak-ng
 
 它內部呼叫 `espeak_TextToPhonemes`(翻譯階段 / API 路徑),輸出與 piper-phonemize / Piper 訓練端對齊。回傳為 espeak 原始音素 (可能含 `(lang)` 旗標、未 NFD);piper 用的後處理 (去旗標、NFD) 由消費端負責。
 
-啟動時以環境變數 `ESPEAK_DATA_PATH` 指向含 `espeak-ng-data` 的父目錄 (即部署的 `espeak-ng` 資料夾)。
+provider 固定使用**自己執行檔所在目錄**作為資料目錄 (自帶與所連結 dll 同版的 `espeak-ng-data`),不讀取外部 `ESPEAK_DATA_PATH`,避免被指到版本不符的資料而與模型失準。消費端無須設定任何環境變數。
 
 最小 C# 範例 (消費端自有碼,不連結本套件):
 
@@ -65,7 +65,6 @@ var psi = new ProcessStartInfo(exe)
     StandardInputEncoding = new UTF8Encoding(false),
     StandardOutputEncoding = new UTF8Encoding(false),
 };
-psi.Environment["ESPEAK_DATA_PATH"] = Path.Combine(AppContext.BaseDirectory, "espeak-ng");
 
 using var p = Process.Start(psi)!;
 p.StandardInput.AutoFlush = true;
@@ -77,7 +76,7 @@ string phonemes = p.StandardOutput.ReadLine();   // həlˈoʊ wˈɜːld
 
 ### espeak-ng.exe — 一般 espeak CLI
 
-標準 eSpeak NG 命令列工具,需要時直接以行程叫用 (同樣設 `ESPEAK_DATA_PATH`)。
+標準 eSpeak NG 命令列工具,需要時直接以行程叫用。它與 provider 不同,會讀取 `ESPEAK_DATA_PATH`;若資料不在預設位置,啟動時以環境變數指向含 `espeak-ng-data` 的父目錄 (即部署的 `espeak-ng` 資料夾)。
 
 ---
 
