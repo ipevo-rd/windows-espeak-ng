@@ -15,6 +15,11 @@ GPLv3, Windows x64 套件:把 [eSpeak NG](https://github.com/espeak-ng/espeak-ng
 
 設計上以**行程邊界**隔離 GPL:消費端**不連結**本套件任何程式碼(本套件根本不提供 managed dll),只是以 `Process` 啟動其中的執行檔、透過 stdin/stdout 通訊。依 GPL FAQ,這屬「單純聚集(mere aggregation)」,呼叫端自身的程式不會成為 GPL 衍生著作。
 
+### 此架構的依據
+
+- **官方專案的同型先例**:eSpeak NG 官方 org 底下的 [espeak-ng-ios-app](https://github.com/espeak-ng/espeak-ng-ios-app/blob/master/LICENSE.md) 採用相同策略——其 Audio Unit Extension 靜態連結 libespeak-ng 因而繼承 GPLv3,而前端 UI「does not linked with libespeak-ng … communicates with Audio Unit with XPC」,故前端維持 MIT 授權。本套件的 `IpevoEspeakNgProvider`(連結 dll、GPLv3)對應其 Extension;消費端走 stdin/stdout 對應其前端走 XPC,法律論點同一套,僅 IPC 機制不同。
+- **授權不會放寬**:社群曾於 [Issue #2131](https://github.com/espeak-ng/espeak-ng/issues/2131) 請求改為 LGPL(理由正是「多數人只用來做音素生成,GPL 限制商用」),結果為 *Closed as not planned*。GPL 是 eSpeak NG 的長期前提,行程隔離是必要設計而非過渡權宜。
+
 > 注意:消費端若**再散布**本套件的二進位給第三方,仍須履行 GPLv3 義務(隨附 `espeak-ng/source.zip` 與 `COPYING`、提供第三方聲明)。GPL 的隔離保護的是「呼叫端程式碼的授權」,不是「免除散布義務」。
 
 ---
